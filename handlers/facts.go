@@ -40,16 +40,39 @@ func CreateHabit(c *fiber.Ctx) error {
 
 // UpdateHabit updates an existing habit
 func UpdateHabit(c *fiber.Ctx) error {
-	habit := new(models.Habit)
-	if err := c.BodyParser(habit); err != nil {
+	habitID := c.Params("id")
+	var existingHabit models.Habit
+
+	if err := database.DB.Db.First(&existingHabit, habitID).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"message": "Habit not found",
+		})
+	}
+
+	updatedHabit := new(models.Habit)
+	if err := c.BodyParser(updatedHabit); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": err.Error(),
 		})
 	}
 
-	database.DB.Db.Save(&habit)
+	// Update the existing habit with the new information
+	existingHabit.Habit_Name = updatedHabit.Habit_Name
+	existingHabit.Target_Repeat_Count = updatedHabit.Target_Repeat_Count
+	existingHabit.Repeat_Count = updatedHabit.Repeat_Count
+	existingHabit.Notes = updatedHabit.Notes
 
-	return c.Status(200).JSON(habit)
+	// Save the updated habit to the database
+	if err := database.DB.Db.Save(&existingHabit).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Internal Server Error",
+		})
+	}
+
+	return c.Status(200).JSON(fiber.Map{
+		"message": "Habit updated successfully",
+		"habit":   existingHabit,
+	})
 }
 
 // DeleteHabit deletes an existing habit
@@ -88,7 +111,6 @@ func GetHabitByID(c *fiber.Ctx) error {
 func FilterHabits(c *fiber.Ctx) error {
 	// Extract query parameters from the request
 	name := c.Query("name")
-	// Add more parameters as needed
 
 	// Build the query based on parameters
 	query := database.DB.Db
