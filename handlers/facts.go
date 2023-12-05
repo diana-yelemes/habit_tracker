@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/diana-yelemes/habit_tracker/database"
@@ -112,15 +113,20 @@ func FilterHabits(c *fiber.Ctx) error {
 	// Extract query parameters from the request
 	name := c.Query("name")
 
-	// Build the query based on parameters
-	query := database.DB.Db
+	// Build the query string
+	var sql string
+	sql = "SELECT * FROM habits WHERE deleted_at IS NULL"
+
+	// Append filters based on parameters
 	if name != "" {
-		query = query.Where("habit_name LIKE ?", "%"+name+"%")
+		sql += fmt.Sprintf(" AND habit_name ILIKE '%%%s%%'", name)
 	}
 
-	// Execute the query
+	sql += " ORDER BY id"
+
+	// Execute the dynamic query
 	var habits []models.Habit
-	if err := query.Find(&habits).Error; err != nil {
+	if err := database.DB.Db.Raw(sql).Scan(&habits).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Internal Server Error",
 		})

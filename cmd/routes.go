@@ -9,11 +9,15 @@ import (
 
 func setupRoutes(app *fiber.App) {
 	app.Get("/", handlers.Home)
-	app.Get("/habit", func(c *fiber.Ctx) error { return handlers.GetAllUserHabits(c, setup.DB) })
-	app.Post("/habit", func(c *fiber.Ctx) error { return handlers.CreateHabit(c, setup.DB) })
-	app.Post("/habitlist", func(c *fiber.Ctx) error { return handlers.CreateHabitList(c, setup.DB) })
-	app.Put("/habit", func(c *fiber.Ctx) error { return handlers.UpdateHabit(c, setup.DB) })
-	app.Put("/habitlist", func(c *fiber.Ctx) error { return handlers.UpdateHabitList(c, setup.DB) })
-	app.Delete("/habit", func(c *fiber.Ctx) error { return handlers.DeleteHabit(c, setup.DB) })
-	app.Delete("/habitlist", func(c *fiber.Ctx) error { return handlers.DeleteHabitList(c, setup.DB) })
+	app.Get("/habit", handlers.GetAllUserHabits)
+	app.Post("/habit", handlers.CreateHabit)
+	app.Put("/habit/:id", handlers.UpdateHabit)
+	app.Delete("/habit/:id", handlers.DeleteHabit)
+	app.Get("/habit/:id", handlers.GetHabitByID)
+	app.Get("/habits/filter", handlers.FilterHabits)
+	app.Put("/habit/complete/:id", handlers.CompleteHabit)
+	app.Put("/habit/undo-complete/:id", handlers.UndoCompleteHabit)
+	app.Get("/habits/completed", handlers.GetCompletedHabits)
+	app.Get("/habits/incomplete", handlers.GetIncompleteHabits)
+	app.Get("/habits/statistics", handlers.GetHabitStatistics)
 }
