@@ -1,0 +1,19 @@
+<!--views/layouts/main.html-->
+<!DOCTYPE html>
+<head>
+    <title>Habit Tracker</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link rel="stylesheet" href="style/main.css?=1">
+    <script src="javascript/app.js"></script>
+</head>
+<body>
+    <div class="wrapper">
+        {{template "header" .}}
+        <h1>{{.Title}}</h1>
+        <h2>
+            {{.Subtitle}}
+        </h2>
+        {{embed}}
+    </div>
+</body>
+</html>

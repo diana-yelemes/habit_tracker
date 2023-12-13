@@ -8,8 +8,7 @@ import (
 )
 
 func setupRoutes(app *fiber.App) {
-	app.Get("/", handlers.Home)
-	app.Get("/habit", handlers.GetAllUserHabits)
+	app.Get("/", handlers.GetAllUserHabits)
 	app.Post("/habit", handlers.CreateHabit)
 	app.Put("/habit/:id", handlers.UpdateHabit)
 	app.Delete("/habit/:id", handlers.DeleteHabit)
@@ -20,4 +19,6 @@ func setupRoutes(app *fiber.App) {
 	app.Get("/habits/completed", handlers.GetCompletedHabits)
 	app.Get("/habits/incomplete", handlers.GetIncompleteHabits)
 	app.Get("/habits/statistics", handlers.GetHabitStatistics)
+	app.Get("/habit", handlers.NewHabitView)
+	app.Put("/habit/updateRepeatCount/:id", handlers.UpdateRepeatCount)
 }

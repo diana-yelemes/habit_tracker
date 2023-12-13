@@ -1,3 +1,4 @@
+// database/database.go
 package database
 
 import (
@@ -38,8 +39,8 @@ func ConnectDb() {
 	db.Logger = logger.Default.LogMode(logger.Info)
 
 	log.Println("running migrations")
-	db.AutoMigrate(&models.Habit{})
-
+	db.AutoMigrate(&models.CalendarDay{})
+	db.Preload("CalendarDays").AutoMigrate(&models.Habit{})
 	DB = Dbinstance{
 
 		Db: db,

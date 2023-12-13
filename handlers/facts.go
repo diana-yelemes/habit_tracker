@@ -1,6 +1,9 @@
+// handlers/facts.go
 package handlers
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -9,34 +12,69 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// Home handles the home route
-func Home(c *fiber.Ctx) error {
-	return c.SendString("Welcome to the Habit Tracker!")
-}
-
 // GetAllUserHabits retrieves all user habits
 func GetAllUserHabits(c *fiber.Ctx) error {
 	habits := []models.Habit{}
 	database.DB.Db.Find(&habits)
 
-	return c.Status(200).JSON(habits)
+	return c.Render("index", fiber.Map{
+		"Title":    "Habit Tracker",
+		"Subtitle": "Keep track on your daily habits!",
+		"Habits":   habits,
+	})
 }
 
-// CreateHabit adds a new habit
+func NewHabitView(c *fiber.Ctx) error {
+	return c.Render("new", fiber.Map{
+		"Title":    "New Habit",
+		"Subtitle": "Add a new daily habit to track!",
+	})
+}
+
+type CreateHabitRequest struct {
+	Habit_Name          string `json:"habit_name" validate:"required"`
+	Repeat_Count        int    `json:"repeat_count"`
+	Target_Repeat_Count int    `json:"target_repeat_count"`
+}
+
 func CreateHabit(c *fiber.Ctx) error {
-	habit := new(models.Habit)
-	if err := c.BodyParser(habit); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"message": err.Error(),
+	var createHabitRequest CreateHabitRequest
+
+	if err := c.BodyParser(&createHabitRequest); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid request body",
 		})
 	}
 
-	habit.Completed = false
-	habit.CompletionDate = nil
+	// Initialize calendar days with completed set to false
+	calendarDays := make([]models.CalendarDay, 7)
+	for i := range calendarDays {
+		calendarDays[i] = models.CalendarDay{Completed: false}
+	}
 
-	database.DB.Db.Create(&habit)
+	// Create a new habit object
+	habit := models.Habit{
+		Habit_Name:          createHabitRequest.Habit_Name,
+		Repeat_Count:        0,
+		Target_Repeat_Count: createHabitRequest.Target_Repeat_Count,
+		CalendarDays:        calendarDays,
+	}
 
-	return c.Status(200).JSON(habit)
+	// Save the habit to the database
+	if err := database.DB.Db.Create(&habit).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Error creating habit",
+		})
+	}
+
+	return ConfirmationView(c)
+}
+
+func ConfirmationView(c *fiber.Ctx) error {
+	return c.Render("confirmation", fiber.Map{
+		"Title":    "Habit added successfully",
+		"Subtitle": "Add more habits to the list!",
+	})
 }
 
 // UpdateHabit updates an existing habit
@@ -99,7 +137,8 @@ func GetHabitByID(c *fiber.Ctx) error {
 	habitID := c.Params("id")
 	var habit models.Habit
 
-	if err := database.DB.Db.First(&habit, habitID).Error; err != nil {
+	// Include CalendarDays in the query
+	if err := database.DB.Db.Preload("CalendarDays").First(&habit, habitID).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"message": "Habit not found",
 		})
@@ -250,4 +289,65 @@ func GetHabitStatistics(c *fiber.Ctx) error {
 	}
 
 	return c.Status(200).JSON(statistics)
+}
+
+type UpdateRepeatCountRequest struct {
+	DayIndex  int  `json:"day_index"`
+	Completed bool `json:"completed"`
+}
+
+func UpdateRepeatCount(c *fiber.Ctx) error {
+	habitID := c.Params("id")
+
+	// Log the request body to see what data is being received
+	fmt.Printf("Request Body: %s\n", c.Body())
+
+	// Decode JSON manually
+	var updateRequest UpdateRepeatCountRequest
+	if err := json.NewDecoder(bytes.NewReader(c.Body())).Decode(&updateRequest); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid request body",
+		})
+	}
+
+	dayIndex := updateRequest.DayIndex
+
+	// Log the received dayIndex
+	fmt.Printf("Received dayIndex: %v\n", dayIndex)
+
+	// Fetch the habit from the database
+	habit := models.Habit{}
+	if err := database.DB.Db.First(&habit, habitID).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Error fetching habit",
+		})
+	}
+
+	// Validate day index
+	if dayIndex < 0 || dayIndex >= len(habit.CalendarDays) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid day index",
+		})
+	}
+
+	// Update the corresponding calendar day's Completed status
+	habit.CalendarDays[dayIndex].Completed = !habit.CalendarDays[dayIndex].Completed
+
+	// Adjust the overall Repeat_Count based on completion status
+	if habit.CalendarDays[dayIndex].Completed {
+		habit.Repeat_Count++
+	} else if habit.Repeat_Count > 0 {
+		habit.Repeat_Count--
+	}
+
+	// Save the updated habit
+	if err := database.DB.Db.Save(&habit).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Error saving habit",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "Repeat Count updated successfully",
+	})
 }

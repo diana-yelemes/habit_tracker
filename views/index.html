@@ -1,0 +1,35 @@
+<!--views/index.html-->
+<div>
+  <table>
+    <thead>
+      <tr>
+        <th>Habit Name</th>
+        <th>Sunday</th>
+        <th>Monday</th>
+        <th>Tuesday</th>
+        <th>Wednesday</th>
+        <th>Thursday</th>
+        <th>Friday</th>
+        <th>Saturday</th>
+        <th>Repeat Count</th>
+        <th>Target Repeat Count</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{ range .Habits }}
+        <tr>
+          <td>{{ .Habit_Name }}</td>
+          <td data-habit-id="{{ .ID }}" data-day-index="0">{{ if ge (len .CalendarDays) 1 }}{{ index .CalendarDays 0 | printf "%v" }}{{ end }}</td>
+          <td data-habit-id="{{ .ID }}" data-day-index="1">{{ if ge (len .CalendarDays) 2 }}{{ index .CalendarDays 1 | printf "%v" }}{{ end }}</td>
+          <td data-habit-id="{{ .ID }}" data-day-index="2">{{ if ge (len .CalendarDays) 3 }}{{ index .CalendarDays 2 | printf "%v" }}{{ end }}</td>
+          <td data-habit-id="{{ .ID }}" data-day-index="3">{{ if ge (len .CalendarDays) 4 }}{{ index .CalendarDays 3 | printf "%v" }}{{ end }}</td>
+          <td data-habit-id="{{ .ID }}" data-day-index="4">{{ if ge (len .CalendarDays) 5 }}{{ index .CalendarDays 4 | printf "%v" }}{{ end }}</td>
+          <td data-habit-id="{{ .ID }}" data-day-index="5">{{ if ge (len .CalendarDays) 6 }}{{ index .CalendarDays 5 | printf "%v" }}{{ end }}</td>
+          <td data-habit-id="{{ .ID }}" data-day-index="6">{{ if ge (len .CalendarDays) 7 }}{{ index .CalendarDays 6 | printf "%v" }}{{ end }}</td>
+          <td>{{ .Repeat_Count }}</td>
+          <td>{{ .Target_Repeat_Count }}</td>
+        </tr>
+      {{ end }}
+    </tbody>
+  </table>
+</div>

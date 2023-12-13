@@ -1,0 +1,18 @@
+table {
+    border: 1px solid #000;
+    border-collapse: collapse;
+    width: 100%;
+}
+
+/* Style for table headers */
+th, td {
+    border: 1px solid #000;
+    padding: 8px;
+    text-align: left;
+}
+
+
+img{
+    width: 150px;
+    height:150px;
+}
