@@ -1,7 +1,7 @@
+<!-- views/delete.html -->
 <form id="delete-form">
     <label for="habit-select">Select Habit:</label>
     <select id="habit-select" name="habit-select">
-        <!-- Populate this list dynamically with habits from your backend -->
         {{range .Habits}}
         <option value="{{.ID}}">{{.Name}}</option>
         {{end}}
@@ -41,14 +41,10 @@
 
         fetch(`/habitdelete/${selectedHabitId}`, {
             method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-            },
         })
         .then(response => response.json())
         .then(data => {
             alert(data.message);
-            // Optionally, you can update the UI or perform additional actions.
         })
         .catch(error => {
             console.error('Error:', error);

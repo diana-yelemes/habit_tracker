@@ -153,13 +153,8 @@ func DeleteHabit(c *fiber.Ctx) error {
 
 	database.DB.Db.Delete(&habit)
 
-	return ConfirmationViewDelete(c)
-}
-
-func ConfirmationViewDelete(c *fiber.Ctx) error {
-	return c.Render("delete_confirmation", fiber.Map{
-		"Title":    "Habit deleted successfully",
-		"Subtitle": "Add habits to the list!",
+	return c.JSON(fiber.Map{
+		"message": "Habit deleted successfully",
 	})
 }
 

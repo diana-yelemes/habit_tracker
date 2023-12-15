@@ -67,21 +67,5 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 
-document.addEventListener('DOMContentLoaded', function () {
-    document.getElementById('delete-form').addEventListener('submit', function (event) {
-    // Prevent the default form submission
-    event.preventDefault();
-
-    // Get the selected habit ID from the dropdown
-    var habitId = document.getElementById('habit-select').value;
-
-    // Construct the URL with the selected habit ID
-    var url = '/habitdelete/' + habitId;
-
-    // Submit the form with the constructed URL
-    this.action = url;
-    this.submit();
-});
-});
 
 
