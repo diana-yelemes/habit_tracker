@@ -9,19 +9,17 @@ import (
 
 type Habit struct {
 	gorm.Model
-	ID                  uint   `json:"id"`
-	Habit_Name          string `json:"habit_name"`
-	CalendarDays        []CalendarDay
-	Target_Repeat_Count int        `json:"target_repeat_count"`
-	Repeat_Count        int        `json:"repeat_count"`
-	Notes               string     `json:"notes"`
-	Completed           bool       `json:"completed"`
-	CompletionDate      *time.Time `json:"completion_date"`
-}
-
-type CalendarDay struct {
-	gorm.Model
-	DayOfWeek string `gorm:"column:day_of_week"`
-	Completed bool
-	HabitID   uint
+	ID                uint       `json:"id"`
+	Name              string     `json:"name"`
+	RepeatCount       int        `json:"repeat_count"`
+	TargetRepeatCount int        `json:"target_repeat count"`
+	Monday            bool       `json:"monday"`
+	Tuesday           bool       `json:"tuesday"`
+	Wednesday         bool       `json:"wednesday"`
+	Thursday          bool       `json:"thursday"`
+	Friday            bool       `json:"friday"`
+	Saturday          bool       `json:"saturday"`
+	Sunday            bool       `json:"sunday"`
+	Completed         bool       `json:"completed"`
+	CompletionDate    *time.Time `json:"completion_date"`
 }

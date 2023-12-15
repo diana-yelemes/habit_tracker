@@ -1,0 +1,57 @@
+<form id="delete-form">
+    <label for="habit-select">Select Habit:</label>
+    <select id="habit-select" name="habit-select">
+        <!-- Populate this list dynamically with habits from your backend -->
+        {{range .Habits}}
+        <option value="{{.ID}}">{{.Name}}</option>
+        {{end}}
+    </select>
+
+    <button type="button" onclick="deleteHabit()">Delete</button>
+</form>
+
+<a href="/">Go back to the list of habits</a>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+    document.getElementById('delete-form').addEventListener('submit', function (event) {
+    // Prevent the default form submission
+    event.preventDefault();
+
+    // Get the selected habit ID from the dropdown
+    var habitId = document.getElementById('habit-select').value;
+
+    // Construct the URL with the selected habit ID
+    var url = '/habitdelete/' + habitId;
+
+    // Submit the form with the constructed URL
+    this.action = url;
+    this.submit();
+});
+});
+
+    function deleteHabit() {
+        var habitSelect = document.getElementById("habit-select");
+        var selectedHabitId = habitSelect.value;
+
+        if (!selectedHabitId) {
+            alert("Please select a habit to delete.");
+            return;
+        }
+
+        fetch(`/habitdelete/${selectedHabitId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.message);
+            // Optionally, you can update the UI or perform additional actions.
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    }
+</script>

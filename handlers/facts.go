@@ -2,10 +2,12 @@
 package handlers
 
 import (
-	"bytes"
-	"encoding/json"
+	"errors"
 	"fmt"
+	"strconv"
 	"time"
+
+	"gorm.io/gorm"
 
 	"github.com/diana-yelemes/habit_tracker/database"
 	"github.com/diana-yelemes/habit_tracker/models"
@@ -32,9 +34,9 @@ func NewHabitView(c *fiber.Ctx) error {
 }
 
 type CreateHabitRequest struct {
-	Habit_Name          string `json:"habit_name" validate:"required"`
-	Repeat_Count        int    `json:"repeat_count"`
-	Target_Repeat_Count int    `json:"target_repeat_count"`
+	Name              string `json:"name" validate:"required"`
+	RepeatCount       int    `json:"repeat_count"`
+	TargetRepeatCount int    `json:"target_repeat_count"`
 }
 
 func CreateHabit(c *fiber.Ctx) error {
@@ -46,18 +48,20 @@ func CreateHabit(c *fiber.Ctx) error {
 		})
 	}
 
-	// Initialize calendar days with completed set to false
-	calendarDays := make([]models.CalendarDay, 7)
-	for i := range calendarDays {
-		calendarDays[i] = models.CalendarDay{Completed: false}
-	}
-
 	// Create a new habit object
 	habit := models.Habit{
-		Habit_Name:          createHabitRequest.Habit_Name,
-		Repeat_Count:        0,
-		Target_Repeat_Count: createHabitRequest.Target_Repeat_Count,
-		CalendarDays:        calendarDays,
+		Name:              createHabitRequest.Name,
+		RepeatCount:       0,
+		TargetRepeatCount: createHabitRequest.TargetRepeatCount,
+		Monday:            false,
+		Tuesday:           false,
+		Wednesday:         false,
+		Thursday:          false,
+		Friday:            false,
+		Saturday:          false,
+		Sunday:            false,
+		Completed:         false,
+		CompletionDate:    nil,
 	}
 
 	// Save the habit to the database
@@ -96,10 +100,9 @@ func UpdateHabit(c *fiber.Ctx) error {
 	}
 
 	// Update the existing habit with the new information
-	existingHabit.Habit_Name = updatedHabit.Habit_Name
-	existingHabit.Target_Repeat_Count = updatedHabit.Target_Repeat_Count
-	existingHabit.Repeat_Count = updatedHabit.Repeat_Count
-	existingHabit.Notes = updatedHabit.Notes
+	existingHabit.Name = updatedHabit.Name
+	existingHabit.TargetRepeatCount = updatedHabit.TargetRepeatCount
+	existingHabit.RepeatCount = updatedHabit.RepeatCount
 
 	// Save the updated habit to the database
 	if err := database.DB.Db.Save(&existingHabit).Error; err != nil {
@@ -113,10 +116,33 @@ func UpdateHabit(c *fiber.Ctx) error {
 		"habit":   existingHabit,
 	})
 }
+func fetchAllHabits() ([]models.Habit, error) {
+	var habits []models.Habit
+	if err := database.DB.Db.Find(&habits).Error; err != nil {
+		return nil, err
+	}
+	return habits, nil
+}
+func DeleteHabitView(c *fiber.Ctx) error {
+	// Fetch the list of habits from the database
+	habits, err := fetchAllHabits()
+
+	if err != nil {
+		// Handle the error (e.g., log, return an error response)
+		return c.Status(fiber.StatusInternalServerError).SendString("Error fetching habits")
+	}
+
+	// Pass the habits to the template
+	return c.Render("delete", fiber.Map{
+		"Habits": habits,
+	})
+}
 
 // DeleteHabit deletes an existing habit
 func DeleteHabit(c *fiber.Ctx) error {
+
 	habitID := c.Params("id")
+
 	var habit models.Habit
 
 	if err := database.DB.Db.First(&habit, habitID).Error; err != nil {
@@ -127,8 +153,13 @@ func DeleteHabit(c *fiber.Ctx) error {
 
 	database.DB.Db.Delete(&habit)
 
-	return c.Status(200).JSON(fiber.Map{
-		"message": "Habit deleted successfully",
+	return ConfirmationViewDelete(c)
+}
+
+func ConfirmationViewDelete(c *fiber.Ctx) error {
+	return c.Render("delete_confirmation", fiber.Map{
+		"Title":    "Habit deleted successfully",
+		"Subtitle": "Add habits to the list!",
 	})
 }
 
@@ -138,7 +169,7 @@ func GetHabitByID(c *fiber.Ctx) error {
 	var habit models.Habit
 
 	// Include CalendarDays in the query
-	if err := database.DB.Db.Preload("CalendarDays").First(&habit, habitID).Error; err != nil {
+	if err := database.DB.Db.First(&habit, habitID).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"message": "Habit not found",
 		})
@@ -158,7 +189,7 @@ func FilterHabits(c *fiber.Ctx) error {
 
 	// Append filters based on parameters
 	if name != "" {
-		sql += fmt.Sprintf(" AND habit_name ILIKE '%%%s%%'", name)
+		sql += fmt.Sprintf(" AND name ILIKE '%%%s%%'", name)
 	}
 
 	sql += " ORDER BY id"
@@ -296,58 +327,128 @@ type UpdateRepeatCountRequest struct {
 	Completed bool `json:"completed"`
 }
 
+type UpdateRepeatCountResponse struct {
+	ID                uint       `json:"id"`
+	Name              string     `json:"name"`
+	RepeatCount       int        `json:"repeat_count"`
+	TargetRepeatCount int        `json:"target_repeat_count"`
+	Monday            bool       `json:"monday"`
+	Tuesday           bool       `json:"tuesday"`
+	Wednesday         bool       `json:"wednesday"`
+	Thursday          bool       `json:"thursday"`
+	Friday            bool       `json:"friday"`
+	Saturday          bool       `json:"saturday"`
+	Sunday            bool       `json:"sunday"`
+	Completed         bool       `json:"completed"`
+	CompletionDate    *time.Time `json:"completion_date"`
+}
+
+// UpdateRepeatCount updates the repeat count and completed status of a habit based on the day index
 func UpdateRepeatCount(c *fiber.Ctx) error {
-	habitID := c.Params("id")
+	// Parse habit ID from the URL parameters
+	habitID, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid habit ID",
+		})
+	}
 
-	// Log the request body to see what data is being received
-	fmt.Printf("Request Body: %s\n", c.Body())
-
-	// Decode JSON manually
-	var updateRequest UpdateRepeatCountRequest
-	if err := json.NewDecoder(bytes.NewReader(c.Body())).Decode(&updateRequest); err != nil {
+	// Parse request body
+	var requestBody UpdateRepeatCountRequest
+	if err := c.BodyParser(&requestBody); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": "Invalid request body",
 		})
 	}
 
-	dayIndex := updateRequest.DayIndex
-
-	// Log the received dayIndex
-	fmt.Printf("Received dayIndex: %v\n", dayIndex)
-
-	// Fetch the habit from the database
-	habit := models.Habit{}
-	if err := database.DB.Db.First(&habit, habitID).Error; err != nil {
+	// Retrieve habit from the database
+	var habit models.Habit
+	result := database.DB.Db.First(&habit, habitID)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"message": "Habit not found",
+			})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"message": "Error fetching habit",
+			"message": "Error retrieving habit",
 		})
 	}
 
-	// Validate day index
-	if dayIndex < 0 || dayIndex >= len(habit.CalendarDays) {
+	// Update repeat count based on day index
+	switch requestBody.DayIndex {
+	case 0:
+		habit.Monday = requestBody.Completed
+	case 1:
+		habit.Tuesday = requestBody.Completed
+	case 2:
+		habit.Wednesday = requestBody.Completed
+	case 3:
+		habit.Thursday = requestBody.Completed
+	case 4:
+		habit.Friday = requestBody.Completed
+	case 5:
+		habit.Saturday = requestBody.Completed
+	case 6:
+		habit.Sunday = requestBody.Completed
+	default:
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": "Invalid day index",
 		})
 	}
 
-	// Update the corresponding calendar day's Completed status
-	habit.CalendarDays[dayIndex].Completed = !habit.CalendarDays[dayIndex].Completed
-
-	// Adjust the overall Repeat_Count based on completion status
-	if habit.CalendarDays[dayIndex].Completed {
-		habit.Repeat_Count++
-	} else if habit.Repeat_Count > 0 {
-		habit.Repeat_Count--
+	// Calculate the new repeat count based on the updated days of the week
+	repeatCount := 0
+	if habit.Monday {
+		repeatCount++
+	}
+	if habit.Tuesday {
+		repeatCount++
+	}
+	if habit.Wednesday {
+		repeatCount++
+	}
+	if habit.Thursday {
+		repeatCount++
+	}
+	if habit.Friday {
+		repeatCount++
+	}
+	if habit.Saturday {
+		repeatCount++
+	}
+	if habit.Sunday {
+		repeatCount++
 	}
 
-	// Save the updated habit
+	// Update the repeat count
+	habit.RepeatCount = repeatCount
+
+	// Update the completed status based on the 'completed' parameter
+	habit.Completed = requestBody.Completed
+
+	// Save the updated habit to the database
 	if err := database.DB.Db.Save(&habit).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"message": "Error saving habit",
+			"message": "Error updating habit",
 		})
 	}
 
-	return c.JSON(fiber.Map{
-		"message": "Repeat Count updated successfully",
-	})
+	response := UpdateRepeatCountResponse{
+		ID:                habit.ID,
+		Name:              habit.Name,
+		RepeatCount:       habit.RepeatCount,
+		TargetRepeatCount: habit.TargetRepeatCount,
+		Monday:            habit.Monday,
+		Tuesday:           habit.Tuesday,
+		Wednesday:         habit.Wednesday,
+		Thursday:          habit.Thursday,
+		Friday:            habit.Friday,
+		Saturday:          habit.Saturday,
+		Sunday:            habit.Sunday,
+		Completed:         habit.Completed,
+		CompletionDate:    habit.CompletionDate,
+	}
+
+	return c.JSON(response)
 }
