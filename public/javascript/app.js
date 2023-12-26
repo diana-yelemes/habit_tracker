@@ -54,11 +54,13 @@ document.addEventListener('DOMContentLoaded', function () {
             })
             .then(response => response.json())
             .then(updatedHabit => {
-                // Update the UI if needed
-                console.log('Repeat count updated:', updatedHabit);
-
-                // Toggle the 'clicked' class to update the cell style
+                // Update the UI
                 target.classList.toggle('clicked');
+                // Update the Repeat Count cell
+                const repeatCountCell = target.parentNode.querySelector('[data-day-of-week="RepeatCount"]');
+                repeatCountCell.textContent = updatedHabit.RepeatCount;
+
+                console.log('Repeat count updated:', updatedHabit);
             })
             .catch(error => {
                 console.error('Error updating repeat count:', error);
@@ -66,6 +68,3 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 });
-
-
-
